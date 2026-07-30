@@ -1,0 +1,23 @@
+# This file exists before the first commit, not after it.
+
+# Build output
+target/
+node_modules/
+dist/
+
+# Secrets. The writer key is read from an environment variable or from a file
+# outside the repository, never from source.
+.env
+.env.*
+# The sample config is committed on purpose: it shows which variables exist,
+# without their values. The negation must come after `.env.*` or it has no
+# effect. Renaming the sample to `env.example` without the leading dot is not
+# an option: `.env.*` would then stop catching `env.local` and its siblings,
+# and a real secret would eventually ride along.
+!.env.example
+*.key
+*keypair*.json
+
+# Environment noise
+.DS_Store
+*.log

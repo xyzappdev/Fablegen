@@ -1,0 +1,15 @@
+[package]
+name = "fablegen-sim"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Deterministic simulation core of Fablegen"
+
+[lib]
+name = "fablegen_sim"
+path = "src/lib.rs"
+
+# Empty, and kept empty for as long as possible: every dependency is somebody
+# else's code on the determinism-critical path. The generator and the hash are
+# written out explicitly. See DETERMINISM.md.
+[dependencies]

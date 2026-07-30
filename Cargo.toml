@@ -1,0 +1,14 @@
+[workspace]
+members = ["sim"]
+resolver = "2"
+
+# RED LINE. By default dev panics on overflow while release wraps silently, so
+# one seed would produce two different histories under two build profiles.
+# Wrapping is allowed only where it is intended, and only through explicit
+# `wrapping_*` calls, such as the generator state.
+#
+# The `test` and `bench` profiles inherit `dev` and `release`, so both
+# `cargo test` and `cargo test --release` run with the check enabled. The test
+# `overflow_panics_in_every_profile` stands guard over this setting.
+[profile.release]
+overflow-checks = true

@@ -1,0 +1,8 @@
+# Floating point is banned inside the simulation: operation order changes after
+# optimisation, FMA behaves differently across targets, and libm implementations
+# disagree in the last bits. All arithmetic is fixed-point Q10 (SCALE = 1024) in
+# i32, with intermediate products widened to i64. See DETERMINISM.md.
+#
+# The file sits at the workspace root on purpose: clippy walks up from the crate
+# directory, so the setting covers the whole workspace and not one crate alone.
+disallowed-types = ["f32", "f64"]

@@ -1,0 +1,75 @@
+# Determinism is the one property this project rests on. Everything below
+# exists for it: no floating point, no system randomness, and no compiler or
+# linter warning left standing, because a warning is an error that has not
+# fired yet. See DETERMINISM.md.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Cheap checks that need no build: they fail in seconds, before anyone waits
+  # on the compiler. Clippy only sees compiled code; grep also sees string
+  # literals, macros and commented-out drafts.
+  gates:
+    name: Determinism grep gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The gate has to prove it works at all, otherwise a green tick means
+      # nothing: a gate that checks nothing looks exactly the same. The
+      # self-test runs BEFORE the real pass and on EVERY run, rather than once
+      # on a throwaway branch, so no red run has to be left in the history.
+      #
+      # The gate logic lives in ci/gates.sh, which takes its paths from the
+      # caller. That is precisely what allows it to be aimed at planted
+      # violations in a temporary directory outside the repository.
+      - name: Gate self-test
+        run: bash ci/gates-selftest.sh
+
+      - name: Determinism gates on the simulation sources
+        run: bash ci/gates.sh --gates=determinism sim/src
+
+      - name: Text gates on tracked files
+        run: git ls-files -z | xargs -0 bash ci/gates.sh --gates=text
+
+  build:
+    name: Format, lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain components
+        run: rustup component add rustfmt clippy
+
+      - name: Report toolchain
+        run: |
+          rustc --version
+          cargo --version
+          cargo clippy --version
+          cargo fmt --version
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test (dev profile)
+        run: cargo test --all
+
+      # Both profiles are mandatory. overflow-checks is switched on by hand in
+      # the root manifest; drop it and dev keeps panicking on overflow while
+      # release starts wrapping silently, so one seed yields two different
+      # histories. This run is the check that the setting is still there.
+      - name: Test (release profile)
+        run: cargo test --all --release
