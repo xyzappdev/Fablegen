@@ -11,7 +11,7 @@
 # usage: ci/gates.sh [--gates=all|determinism|text] PATH...
 #
 #   determinism  floating point, system randomness and wall clock
-#   text         U+FFFD, the section sign U+00A7, UTF-8 validity of *.md
+#   text         U+FFFD, the section sign U+00A7, UTF-8 and NUL in *.md
 #   all          both groups, the default
 #
 # The determinism group is meant for the simulation sources. Pointing it at
@@ -135,9 +135,25 @@ if [ "$gates" = all ] || [ "$gates" = text ]; then
         fails=$((fails + 1))
     else
         invalid=""
+        withnul=""
+        # -I made grep skip binary files, and a NUL byte is what marks a file
+        # as binary. NUL is valid UTF-8, so iconv does not object either: a
+        # markdown file with a single NUL byte would slip past every text
+        # gate, hiding U+FFFD behind it. Legitimate markdown never needs NUL,
+        # so its mere presence is a failure.
         for file in "${files[@]}"; do
             case "$file" in
                 *.md)
+                    nuls=$(LC_ALL=C tr -dc '\000' < "$file" | wc -c)
+                    nulrc=$?
+                    if [ "$nulrc" -ne 0 ]; then
+                        printf '::error::gate broken: counting NUL bytes in %s exited %s, the check did not run\n' \
+                            "$file" "$nulrc" >&2
+                        fails=$((fails + 1))
+                    elif [ "$nuls" -ne 0 ]; then
+                        withnul="$withnul $file"
+                    fi
+
                     iconv -f utf-8 -t utf-8 "$file" >/dev/null 2>&1 \
                         || invalid="$invalid $file"
                     ;;
@@ -145,6 +161,11 @@ if [ "$gates" = all ] || [ "$gates" = text ]; then
         done
         if [ -n "$invalid" ]; then
             printf '::error::not valid UTF-8:%s\n' "$invalid" >&2
+            fails=$((fails + 1))
+        fi
+        if [ -n "$withnul" ]; then
+            printf '::error::NUL byte in markdown, the file would be skipped as binary:%s\n' \
+                "$withnul" >&2
             fails=$((fails + 1))
         fi
     fi

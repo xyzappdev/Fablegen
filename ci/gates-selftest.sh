@@ -11,8 +11,11 @@
 # This runs on EVERY build, not once on a throwaway branch, so that no red run
 # has to be left behind in the history to demonstrate the point.
 #
-# There are five violators rather than four: the section sign shares a gate
-# with U+FFFD and would otherwise go unproven.
+# There are six violators rather than five: the section sign shares a gate
+# with U+FFFD and would otherwise go unproven. The NUL violator carries a
+# U+FFFD of its own, so the NUL check is the only one it can fail: take that
+# check away and the file passes everything else, which is precisely the
+# regression this violator exists to catch.
 #
 # The offending characters are assembled with printf from their code points and
 # never reach the repository: the directory is created outside the working copy
@@ -51,6 +54,7 @@ printf 'let mut r = rand::thread_rng();\n'         > "$tmp/violator-entropy.rs"
 printf 'broken text %s inside a line\n' "$fffd"    > "$tmp/violator-fffd.md"
 printf 'a reference written as DOC %s1.1\n' "$sign" > "$tmp/violator-section.md"
 printf 'a broken byte \xd0 in the middle\n'        > "$tmp/violator-utf8.md"
+printf 'hidden %s behind a NUL \x00 byte\n' "$fffd" > "$tmp/violator-nul.md"
 printf 'a clean file, see DETERMINISM.md #2\n'     > "$tmp/clean.md"
 
 fails=0
@@ -80,6 +84,7 @@ expect_caught "$tmp/violator-entropy.rs" 'system randomness'
 expect_caught "$tmp/violator-fffd.md"    'U+FFFD'
 expect_caught "$tmp/violator-section.md" 'section sign U+00A7'
 expect_caught "$tmp/violator-utf8.md"    'invalid UTF-8'
+expect_caught "$tmp/violator-nul.md"     'NUL byte in markdown'
 expect_clean  "$tmp/clean.md"
 
 # Separate check: a missing path must be an error too, not "nothing to scan,
