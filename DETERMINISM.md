@@ -28,7 +28,7 @@ Arithmetic is fixed-point, `SCALE = 1024`, that is Q10:
 ```
 world coordinate 1.5  ->  1536 internal units
 multiply:  (a * b) >> 10
-divide:    (a << 10) / b
+divide:    floor((a << 10) / b)
 ```
 
 Values are `i32`. Intermediate products widen to `i64` and narrow back, so a
@@ -38,6 +38,15 @@ Rounding is **floor everywhere**, toward negative infinity. The shift operator
 already rounds that way while integer division in Rust truncates toward zero,
 so floor division is written out explicitly rather than inherited from the
 operator. Two rounding modes in one module would be a guaranteed divergence.
+The rule is frozen once the first reference log exists: changing it would move
+every value of every history.
+
+Overflow **panics**. It neither saturates nor wraps. Saturation would distort
+the history quietly and stay invisible to the golden test, because the log
+would go on agreeing with itself while being wrong; a panic stops the run while
+the mistake can still be seen. The fixed-point type checks every operation
+itself instead of relying on the `overflow-checks` setting of a build profile,
+which is a setting somebody can drop without noticing. See section 7.
 
 Floating point is permitted only where it cannot reach the log: rendering in
 the browser, tuning charts, test utilities.

@@ -17,8 +17,13 @@
 //! The crate knows nothing about the chain. It produces a stream of events;
 //! who writes that stream and where is not its concern.
 //!
-//! For now it carries only the skeleton and the prohibitions. Fixed-point
-//! arithmetic, the angle table, an integer `atan2` and the generator follow.
+//! For now it carries the prohibitions and fixed-point arithmetic. The angle
+//! table, an integer `atan2` and the generator follow.
+
+// Fixed-point Q10: the only arithmetic the simulation is allowed to perform.
+// Public because a private module would make every item in it dead code until
+// the first consumer arrives, and a warning is an error that has not fired yet.
+pub mod fixed;
 
 #[cfg(test)]
 mod tests {
