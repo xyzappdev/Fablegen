@@ -88,7 +88,12 @@ scan() {
     local mode="$1" pattern="$2" message="$3"
     local out rc
 
-    out=$(LC_ALL=C grep -nH "$mode" -e "$pattern" "${files[@]}" 2>&1)
+    # -I skips binary files. Images arrive in web/ later and the bytes of
+    # U+FFFD can occur inside a PNG by chance; a gate that fails on a file
+    # where there is no text to search is a false alarm. Under LC_ALL=C the
+    # binary test keys on NUL bytes, so a markdown file with broken encoding
+    # is still scanned.
+    out=$(LC_ALL=C grep -nHI "$mode" -e "$pattern" "${files[@]}" 2>&1)
     rc=$?
 
     if [ "$rc" -gt 1 ]; then

@@ -36,8 +36,11 @@ jobs:
       - name: Gate self-test
         run: bash ci/gates-selftest.sh
 
-      - name: Determinism gates on the simulation sources
-        run: bash ci/gates.sh --gates=determinism sim/src
+      # The whole crate, not just sim/src: build.rs, benches/ and tests/ are
+      # sources too, and aiming the gate at sim/src would silently leave them
+      # outside it the day they appear.
+      - name: Determinism gates on the simulation crate
+        run: bash ci/gates.sh --gates=determinism sim/
 
       - name: Text gates on tracked files
         run: git ls-files -z | xargs -0 bash ci/gates.sh --gates=text
