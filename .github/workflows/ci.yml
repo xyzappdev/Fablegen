@@ -45,6 +45,15 @@ jobs:
       - name: Text gates on tracked files
         run: git ls-files -z | xargs -0 bash ci/gates.sh --gates=text
 
+      # Every file in this repository is published, so none of them may cite a
+      # document that is not. This ran green by accident for a while: code
+      # merged with eleven references to an unpublished document, and three
+      # reviews walked past them. The paths are named rather than swept up from
+      # the checkout, because the gate takes its file list from the caller --
+      # that is what lets the self-test aim it at planted violations.
+      - name: No references to unpublished documents
+        run: bash ci/gates.sh --gates=public sim/ tools/ ci/ .github/ DETERMINISM.md README.md ROADMAP.md
+
   build:
     name: Format, lint and test
     runs-on: ubuntu-latest

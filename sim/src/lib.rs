@@ -17,13 +17,25 @@
 //! The crate knows nothing about the chain. It produces a stream of events;
 //! who writes that stream and where is not its concern.
 //!
-//! For now it carries the prohibitions and fixed-point arithmetic. The angle
-//! table, an integer `atan2` and the generator follow.
+//! For now it carries the prohibitions, fixed-point arithmetic and the angle
+//! table. An integer `atan2` and the generator follow.
 
 // Fixed-point Q10: the only arithmetic the simulation is allowed to perform.
 // Public because a private module would make every item in it dead code until
 // the first consumer arrives, and a warning is an error that has not fired yet.
 pub mod fixed;
+
+// Sine and cosine by table lookup, standing in for the library calls banned by
+// DETERMINISM.md #4.
+pub mod trig;
+
+// xoshiro256++, written out, standing in for the system randomness banned by
+// DETERMINISM.md #3.
+pub mod rng;
+
+// The table itself: generated data, private because nothing outside the crate
+// has any business indexing it. The way in is `trig::sin` and `trig::cos`.
+mod trig_table;
 
 #[cfg(test)]
 mod tests {

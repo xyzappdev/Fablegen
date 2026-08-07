@@ -8,23 +8,29 @@
 # deliberate violations and requires a non-zero exit for each. A gate that
 # fetches its own file list has nothing to aim at and cannot be proven.
 #
-# usage: ci/gates.sh [--gates=all|determinism|text] PATH...
+# usage: ci/gates.sh [--gates=all|determinism|text|public] PATH...
 #
 #   determinism  floating point, system randomness and wall clock
 #   text         U+FFFD, the section sign U+00A7, UTF-8 and NUL in *.md
-#   all          both groups, the default
+#   public       references to documents that never leave this repository
+#   all          determinism and text, the default
 #
 # The determinism group is meant for the simulation sources. Pointing it at
 # ci/ itself is meaningless: the strings it hunts for live here as patterns.
 #
-# The section sign and U+FFFD are assembled with printf from their code points
-# and never written into this file literally, or the gate would flag itself on
-# the first run.
+# The public group is deliberately NOT part of `all`, and is aimed only at the
+# files that leave for the public repository. The internal documents cite each
+# other constantly and must go on doing so; it is published code citing them
+# that is the defect, because the reader cannot follow the reference.
+#
+# The section sign, U+FFFD and the internal document names are all assembled so
+# that they never appear literally in this file, or the gate would flag itself
+# on the first run.
 
 set -uo pipefail
 
 usage() {
-    sed -n '3,22p' "$0" >&2
+    sed -n '3,28p' "$0" >&2
 }
 
 gates=all
@@ -39,7 +45,7 @@ while [ $# -gt 0 ]; do
 done
 
 case "$gates" in
-    all|determinism|text) ;;
+    all|determinism|text|public) ;;
     *) printf 'gates: unknown group: %s\n' "$gates" >&2; exit 2 ;;
 esac
 
@@ -169,6 +175,23 @@ if [ "$gates" = all ] || [ "$gates" = text ]; then
             fails=$((fails + 1))
         fi
     fi
+fi
+
+if [ "$gates" = public ]; then
+    # A file bound for the public repository must not cite a document that
+    # stays behind. It is not a leak of content -- it is a reference the reader
+    # cannot follow, pointing at a document that, from outside, does not exist.
+    #
+    # This gate exists because it happened: published code carried eleven such
+    # references, and three reviews walked past them. A rule that is only in
+    # somebody's head gets broken again.
+    #
+    # The names are written as an alternation, so not one of them appears
+    # literally on this line. Otherwise this script, which is itself published,
+    # would be the first thing the gate caught -- the same reason the float
+    # pattern above is spelled f(32|64).
+    scan -E '(CLAUDE|RULES|HANDOFF|PLAN|SPEC|GENOME|CHAIN|NARRATIVE|SOCIAL)\.md|sessions[/]' \
+        'a published file cites a document that is not published: the reference leads nowhere from outside'
 fi
 
 if [ "$fails" -gt 0 ]; then

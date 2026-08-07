@@ -1,5 +1,8 @@
 [workspace]
-members = ["sim"]
+# tools/ holds offline generators, never the simulation. They are members so
+# that fmt, clippy and the test suite reach them; they are outside sim/ so that
+# the floating point they need stays outside the crate where it is banned.
+members = ["sim", "tools/gen-trig-table"]
 resolver = "2"
 
 # RED LINE. By default dev panics on overflow while release wraps silently, so

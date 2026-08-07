@@ -1,0 +1,17 @@
+[package]
+name = "gen-trig-table"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Offline generator of the committed sine table of fablegen-sim"
+
+[[bin]]
+name = "gen-trig-table"
+path = "src/main.rs"
+
+# Empty, and for a reason that is not the usual one: this crate must NOT depend
+# on fablegen-sim. The documented way to regenerate the table redirects stdout
+# into sim/src/trig_table.rs, and the shell truncates that file before cargo
+# runs. With a dependency, cargo would then try to build the simulation from the
+# emptied file and fail before the generator ever printed a byte.
+[dependencies]

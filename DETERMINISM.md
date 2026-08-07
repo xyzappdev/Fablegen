@@ -76,8 +76,63 @@ Instead:
 - a table of **1024 divisions** of the circle, `i32` values, precomputed and
   committed to the repository as data rather than computed at startup;
 - an integer `atan2` returning an angle index in `0..1023`, by octant reduction
-  plus a small lookup table;
+  plus a binary search over that same committed sine table;
 - distances are compared **squared**. No square root is needed anywhere.
+
+**`atan2` has no table of its own**, and that is not about saving space. One set
+of numbers is one thing to keep correct; two would drift apart silently. The
+agreement between `atan2` and `sin`/`cos` holds **by construction** rather than
+by coincidence: the search compares the cross products `SIN[m] * |x|` against
+`COS[m] * |y|` in `i64` -- the same ordering as `tan(m) <= |y| / |x|`, without
+the division -- and the cosine comes from the same table, a quarter turn ahead.
+So `atan2(sin(i), cos(i))` is `i` **exactly**, for all 1024 indices, and a test
+says so.
+
+`atan2(0, 0)` returns 0. That is a **convention, not a result**: the origin has
+no direction and every other answer is equally arbitrary. It is written down
+because an undocumented arbitrary value is the kind of thing somebody later
+"fixes", and that would move every history ever produced.
+
+**A direction lying between two tabulated ones resolves to the tabulated one on
+the side of the nearer axis. The rounding is mirrored about the axes rather
+than uniform around the circle.**
+
+The reason is the same oddness the table itself is built for. Mirrored rounding
+makes `atan2(-y, x) == -atan2(y, x)` hold **exactly**, for every direction and
+not only for the tabulated ones: reflecting about an axis and rounding commute.
+A uniform floor counterclockwise breaks that oddness and buys nothing for it --
+it drags **every** direction the same way round, a constant error with a
+non-zero mean, where mirrored rounding errs symmetrically and drifts nowhere on
+average. Ties away from zero was chosen for the table itself by exactly the
+same argument.
+
+This is **frozen with the first reference log**, like the floor rule and the
+table's rounding.
+
+The table is rounded to the **nearest** integer, with ties **away from zero**.
+That is not an exception to the floor rule of section 2 but a different layer:
+floor governs the fixed-point arithmetic of the hot path, while this table is
+computed offline, once, and frozen as data -- nothing recomputes it at run time.
+Ties away from zero is the choice because it negates cleanly: rounding `-x`
+gives exactly minus the rounding of `x`, and that is what makes the table
+**exactly** antisymmetric, `SIN[(1024 - i) % 1024] == -SIN[i]`. Floor would sag
+the whole table toward negative infinity and lose that symmetry.
+
+The generator lives in `tools/gen-trig-table/`, outside the simulation crate,
+because computing a sine needs the floating point that `sim/` bans outright.
+Regenerate the committed file with:
+
+```
+cargo run -p gen-trig-table > sim/src/trig_table.rs
+```
+
+The table is checked by **two independent mechanisms**: integer invariants
+inside the simulation (quarter points, antisymmetry, monotonicity per quarter,
+range, `sin^2 + cos^2`), and an exact comparison against a freshly computed
+table in the generator's own tests. Both sides carry negative probes that hand
+the check a corrupted copy and require it to fail, for the same reason the CI
+gates self-test on every run: a check nobody has seen fail is not known to check
+anything.
 
 ## 5. Fixed iteration order
 

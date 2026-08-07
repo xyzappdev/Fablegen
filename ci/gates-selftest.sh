@@ -57,11 +57,19 @@ printf 'a broken byte \xd0 in the middle\n'        > "$tmp/violator-utf8.md"
 printf 'hidden %s behind a NUL \x00 byte\n' "$fffd" > "$tmp/violator-nul.md"
 printf 'a clean file, see DETERMINISM.md #2\n'     > "$tmp/clean.md"
 
+# The name is passed as an argument rather than written into the line, for the
+# same reason the offending characters above are: this script is itself
+# published, and a literal reference here would make it the gate's first catch.
+printf '// the rule is written down in %s.md\n' RULES > "$tmp/violator-internal-doc.rs"
+
 fails=0
 
-expect_caught() { # expect_caught <file> <what is being proven>
-    local file="$1" what="$2"
-    if bash "$gates" --gates=all "$file" >/dev/null 2>&1; then
+# The group defaults to `all`. The public group is named explicitly where it is
+# needed, because it is not part of `all`: aimed at the whole repository it
+# would flag every internal document by design.
+expect_caught() { # expect_caught <file> <what is being proven> [group]
+    local file="$1" what="$2" group="${3:-all}"
+    if bash "$gates" --gates="$group" "$file" >/dev/null 2>&1; then
         printf 'FAILED  not caught: %s (%s)\n' "$what" "$(basename "$file")" >&2
         fails=$((fails + 1))
     else
@@ -69,12 +77,12 @@ expect_caught() { # expect_caught <file> <what is being proven>
     fi
 }
 
-expect_clean() { # expect_clean <file>
-    local file="$1"
-    if bash "$gates" --gates=all "$file" >/dev/null 2>&1; then
-        printf 'ok      clean file passes: %s\n' "$(basename "$file")"
+expect_clean() { # expect_clean <file> [group]
+    local file="$1" group="${2:-all}"
+    if bash "$gates" --gates="$group" "$file" >/dev/null 2>&1; then
+        printf 'ok      clean file passes: %s (group %s)\n' "$(basename "$file")" "$group"
     else
-        printf 'FAILED  clean file rejected: %s\n' "$(basename "$file")" >&2
+        printf 'FAILED  clean file rejected: %s (group %s)\n' "$(basename "$file")" "$group" >&2
         fails=$((fails + 1))
     fi
 }
@@ -86,6 +94,12 @@ expect_caught "$tmp/violator-section.md" 'section sign U+00A7'
 expect_caught "$tmp/violator-utf8.md"    'invalid UTF-8'
 expect_caught "$tmp/violator-nul.md"     'NUL byte in markdown'
 expect_clean  "$tmp/clean.md"
+
+# The public group, proven in both directions. The clean file cites
+# DETERMINISM.md, which IS published: the gate has to tell a reference that can
+# be followed from one that cannot, not merely spot the shape of a file name.
+expect_caught "$tmp/violator-internal-doc.rs" 'a reference to an unpublished document' public
+expect_clean  "$tmp/clean.md" public
 
 # Separate check: a missing path must be an error too, not "nothing to scan,
 # therefore clean".
